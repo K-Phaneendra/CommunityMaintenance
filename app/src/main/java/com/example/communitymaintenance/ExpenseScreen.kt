@@ -39,6 +39,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
 
 // --- MAIN SCREEN CONTROLLER ---
 @Composable
@@ -327,7 +335,10 @@ fun PhotoViewDialog(fileName: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val file = File(context.filesDir, fileName)
 
-    // Load the bitmap from local storage
+    // State for zoom and pan
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
     val bitmap = remember(fileName) {
         if (file.exists()) {
             BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
@@ -338,30 +349,71 @@ fun PhotoViewDialog(fileName: String, onDismiss: () -> Unit) {
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false) // Full screen style
+        properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = Color.Black.copy(alpha = 0.9f)
+            color = Color.Black
         ) {
-            Box(contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    // This modifier detects pinch-to-zoom and dragging
+                    .pointerInput(Unit) {
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            scale = (scale * zoom).coerceIn(1f, 5f) // Limit zoom between 1x and 5x
+
+                            // Only allow panning if we are zoomed in
+                            if (scale > 1f) {
+                                offset += pan
+                            } else {
+                                offset = Offset.Zero
+                            }
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
                 if (bitmap != null) {
                     Image(
                         bitmap = bitmap,
                         contentDescription = "Expense Receipt",
-                        modifier = Modifier.fillMaxWidth().fillMaxHeight(0.8f),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offset.x,
+                                translationY = offset.y
+                            ),
                         contentScale = ContentScale.Fit
                     )
                 } else {
                     Text("Image not found", color = Color.White)
                 }
 
-                // Close Button
+                // Close Button - Positioned at the top to stay visible
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(16.dp)
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(24.dp)
                 ) {
-                    Icon(Icons.Default.Close, "Close", tint = Color.White, modifier = Modifier.size(32.dp))
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                // Reset Zoom Label (Optional helper)
+                if (scale > 1f) {
+                    Text(
+                        "Pinch to zoom / Drag to move",
+                        color = Color.White.copy(alpha = 0.5f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+                    )
                 }
             }
         }
