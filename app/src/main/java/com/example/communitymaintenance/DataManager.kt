@@ -3,6 +3,11 @@ package com.example.communitymaintenance
 import android.content.Context
 import com.google.gson.GsonBuilder
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.Date
+import java.util.Calendar
+import java.util.UUID
 
 // --- Data Models ---
 data class MaintenanceData(
@@ -106,5 +111,71 @@ object DataManager {
             data.records[index] = updatedRecord
             File(context.filesDir, DB_FILE).writeText(gson.toJson(data))
         }
+    }
+
+    fun generateYearlyCsv(context: Context, year: String): File {
+        val data = loadDatabase(context)
+        val file = File(context.filesDir, "Maintenance_Report_$year.csv")
+        val sb = StringBuilder()
+
+        // --- 1. YEARLY SUMMARY HEADER ---
+        // Paid Income only
+        val yearlyIncome = data.records.filter { it.type == "income" && it.status == "paid" && it.date.startsWith(year) }.sumOf { it.amount }
+        val yearlyExpense = data.records.filter { it.type == "expense" && it.date.startsWith(year) }.sumOf { it.amount }
+        val yearlyPending = data.records.filter { it.type == "income" && it.status == "pending" && it.date.startsWith(year) }.sumOf { it.amount }
+
+        sb.append("YEARLY SUMMARY REPORT - $year\n")
+        sb.append("Total Paid Income,Total Expense,Total Pending,Final Balance\n")
+        sb.append("$yearlyIncome,$yearlyExpense,$yearlyPending,${yearlyIncome - yearlyExpense}\n\n")
+
+        // --- 2. MONTHLY BREAKDOWN ---
+        for (m in 1..12) {
+            val monthStr = String.format("%s-%02d", year, m)
+            val monthDate = SimpleDateFormat("yyyy-MM", Locale.US).parse(monthStr)
+            val monthName = if (monthDate != null) SimpleDateFormat("MMMM", Locale.US).format(monthDate) else "Month $m"
+
+            val monthRecords = data.records.filter { it.date.startsWith(monthStr) }
+
+            if (monthRecords.isNotEmpty()) {
+                // Changed from "===" to "---" to avoid Excel formula errors
+                sb.append("------------------------------------------\n")
+                sb.append("MONTHLY REPORT: $monthName $year\n")
+                sb.append("------------------------------------------\n\n")
+
+                // Table A: Pending Income
+                val pendingIncome = monthRecords.filter { it.type == "income" && it.status == "pending" }
+                sb.append("TABLE: PENDING INCOME\n")
+                sb.append("Flat,Amount\n")
+                if (pendingIncome.isEmpty()) {
+                    sb.append("None,0\n")
+                } else {
+                    pendingIncome.forEach { sb.append("${it.flat_no},${it.amount}\n") }
+                }
+                sb.append("\n")
+
+                // Table B: Total Expenses
+                val expenses = monthRecords.filter { it.type == "expense" }
+                sb.append("TABLE: MONTHLY EXPENSES\n")
+                sb.append("Category,Amount\n")
+                if (expenses.isEmpty()) {
+                    sb.append("None,0\n")
+                } else {
+                    expenses.forEach { sb.append("${it.expense_name},${it.amount}\n") }
+                }
+                sb.append("\n")
+
+                // Table C: Monthly Summary Table
+                val mIncome = monthRecords.filter { it.type == "income" && it.status == "paid" }.sumOf { it.amount }
+                val mExpense = expenses.sumOf { it.amount }
+                val mPending = pendingIncome.sumOf { it.amount }
+
+                sb.append("TABLE: MONTH SUMMARY\n")
+                sb.append("Total Income (Paid),Total Expense,Total Pending\n")
+                sb.append("$mIncome,$mExpense,$mPending\n\n")
+            }
+        }
+
+        file.writeText(sb.toString())
+        return file
     }
 }

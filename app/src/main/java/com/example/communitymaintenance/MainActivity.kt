@@ -19,6 +19,7 @@ class MainActivity : ComponentActivity() {
                     composable("income") { IncomeScreen(navController) }
                     composable("expense") { ExpenseScreen(navController) }
                     composable("files") { FileListScreen(navController) }
+                    composable("reports") { ReportsScreen(navController) }
                 }
             }
         }
