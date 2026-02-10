@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
                     composable("expense") { ExpenseScreen(navController) }
                     composable("files") { FileListScreen(navController) }
                     composable("reports") { ReportsScreen(navController) }
+                    composable("admin") { AdminScreen(navController) }
                 }
             }
         }

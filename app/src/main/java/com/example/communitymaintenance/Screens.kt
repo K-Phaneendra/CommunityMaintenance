@@ -70,7 +70,7 @@ fun HomeScreen(navController: NavController) {
         }
         Spacer(Modifier.height(12.dp))
 
-        // NEW: Reports Button
+        // Reports Button
         Button(
             onClick = { navController.navigate("reports") },
             colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
@@ -83,6 +83,16 @@ fun HomeScreen(navController: NavController) {
 
         OutlinedButton(onClick = { navController.navigate("files") }, modifier = Modifier.fillMaxWidth()) {
             Text("View Local JSON Files")
+        }
+
+        // Admin button
+        OutlinedButton(
+            onClick = { navController.navigate("admin") },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(Icons.Default.Settings, null)
+            Spacer(Modifier.width(8.dp))
+            Text("Admin Settings")
         }
     }
 }

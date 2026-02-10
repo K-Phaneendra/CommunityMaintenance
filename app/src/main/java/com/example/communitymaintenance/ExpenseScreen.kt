@@ -231,10 +231,12 @@ fun ExpenseCard(record: Record, onEdit: (Record) -> Unit, onDelete: (String) -> 
 @Composable
 fun ExpenseForm(existingRecord: Record?, onSave: () -> Unit, onCancel: () -> Unit) {
     val context = LocalContext.current
-    val expenses = remember { DataManager.getStandardExpenses(context) }
-
+    // Use derivedStateOf or fetch directly without a static remember if you want it fresh
+    val expenses = remember(existingRecord) {
+        DataManager.getStandardExpenses(context) + DataManager.getOtherExpenses(context)
+    }
     var date by remember { mutableStateOf(existingRecord?.date ?: SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())) }
-    var selectedExp by remember { mutableStateOf(existingRecord?.expense_name ?: expenses[0]) }
+    var selectedExp by remember { mutableStateOf(existingRecord?.expense_name ?: expenses.firstOrNull() ?: "") }
     var amount by remember { mutableStateOf(existingRecord?.amount?.toInt()?.toString() ?: "") }
     var photoFileName by remember { mutableStateOf(existingRecord?.photo_files?.firstOrNull()) }
     var expExpanded by remember { mutableStateOf(false) }

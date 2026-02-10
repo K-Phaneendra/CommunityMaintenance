@@ -40,6 +40,7 @@ object DataManager {
     private const val DB_FILE = "maintenance.json"
     private const val FLATS_FILE = "flats.json"
     private const val EXPENSES_FILE = "standardExpenses.json"
+    private const val OTHER_EXPENSES_FILE = "otherExpenses.json"
     private val gson = GsonBuilder().setPrettyPrinting().create()
 
     // Load Dropdown Data
@@ -177,5 +178,47 @@ object DataManager {
 
         file.writeText(sb.toString())
         return file
+    }
+
+    fun getOtherExpenses(context: Context): List<String> {
+        val internalFile = File(context.filesDir, OTHER_EXPENSES_FILE)
+
+        // 1. Initial Setup: If internal file doesn't exist, copy from assets
+        if (!internalFile.exists()) {
+            try {
+                context.assets.open(OTHER_EXPENSES_FILE).use { input ->
+                    internalFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                android.util.Log.d("DATA_MANAGER", "Copied otherExpenses.json from assets to internal storage.")
+            } catch (e: Exception) {
+                android.util.Log.e("DATA_MANAGER", "Assets file missing or unreadable", e)
+                return emptyList()
+            }
+        }
+
+        // 2. Standard Read from Internal Storage
+        return try {
+            val json = internalFile.readText()
+            gson.fromJson(json, Array<String>::class.java).toList()
+        } catch (e: Exception) {
+            android.util.Log.e("DATA_MANAGER", "Error parsing internal otherExpenses.json", e)
+            emptyList()
+        }
+    }
+
+    fun saveOtherExpense(context: Context, newType: String) {
+        val existing = getOtherExpenses(context).toMutableList()
+        if (newType.isNotBlank() && !existing.contains(newType)) {
+            existing.add(newType)
+            File(context.filesDir, OTHER_EXPENSES_FILE).writeText(gson.toJson(existing))
+        }
+    }
+
+    fun deleteOtherExpense(context: Context, type: String) {
+        val existing = getOtherExpenses(context).toMutableList()
+        existing.remove(type)
+        File(context.filesDir, OTHER_EXPENSES_FILE).writeText(gson.toJson(existing))
     }
 }
